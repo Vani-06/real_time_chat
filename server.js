@@ -56,8 +56,6 @@ io.on('connection', (socket) => {
       // We send it to the room matching the receiver's ID
       io.to(data.receiverId).emit("receive_message", newMessage);
       
-      // Optional: Send it back to sender too so their UI updates immediately
-      io.to(data.senderId).emit("receive_message", newMessage);
 
     } catch (err) {
       console.log("Error saving message:", err);

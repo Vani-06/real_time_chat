@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Test</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .box { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
+        #messages { height: 200px; overflow-y: scroll; border: 1px solid #ddd; padding: 10px; background: #f9f9f9; }
+    </style>
+</head>
+<body>
+
+    <h2> Real-Time Chat Test</h2>
+
+    <div id="login-section" class="box">
+        <h4>1. Simulating Login</h4>
+        <p>Enter a User ID to "pretend" to be logged in:</p>
+        <input type="text" id="userId" placeholder="Enter User ID (e.g., user1)">
+        <button onclick="login()">Join Chat</button>
+    </div>
+
+    <div id="chat-section" class="box" style="display:none;">
+        <h4>2. Chat Room</h4>
+        <p>Logged in as: <b id="displayUser"></b></p>
+        
+        <div id="messages"></div>
+
+        <input type="text" id="receiverId" placeholder="Send to User ID (e.g., user2)">
+        <input type="text" id="messageInput" placeholder="Type a message...">
+        <button onclick="sendMessage()">Send</button>
+    </div>
+
+    <script>
+        const socket = io("http://localhost:5000");
+        let myId = "";
+
+        // Listen for incoming messages
+        socket.on("receive_message", (data) => {
+            const msgDiv = document.getElementById("messages");
+            msgDiv.innerHTML += `<p><strong>From ${data.sender}:</strong> ${data.content}</p>`;
+            msgDiv.scrollTop = msgDiv.scrollHeight; // Auto-scroll to bottom
+        });
+
+        function login() {
+            myId = document.getElementById("userId").value;
+            if (!myId) return alert("Enter a User ID!");
+            
+            // Tell the server we are here
+            socket.emit("join_room", myId);
+            
+            document.getElementById("login-section").style.display = "none";
+            document.getElementById("chat-section").style.display = "block";
+            document.getElementById("displayUser").innerText = myId;
+        }
+
+        function sendMessage() {
+            const receiverId = document.getElementById("receiverId").value;
+            const content = document.getElementById("messageInput").value;
+
+            if (!receiverId || !content) return;
+
+            // Send to server
+            socket.emit("send_message", {
+                senderId: myId,
+                receiverId: receiverId,
+                content: content
+            });
+
+            // Show my own message on my screen
+            const msgDiv = document.getElementById("messages");
+            msgDiv.innerHTML += `<p style="text-align:right; color:blue;"><strong>Me:</strong> ${content}</p>`;
+            document.getElementById("messageInput").value = "";
+        }
+    </script>
+</body>
+</html>
