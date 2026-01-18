@@ -15,6 +15,8 @@ app.use(express.json());
 
 // Routes
 const authRoute = require('./routes/auth');
+const userRoute = require('./routes/users');
+app.use('/api/users', userRoute);
 app.use('/api/auth', authRoute);
 
 // Database Connection
