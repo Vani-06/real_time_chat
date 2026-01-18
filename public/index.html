@@ -12,64 +12,61 @@
     </style>
 </head>
 <body>
-
-    <h2> Real-Time Chat Test</h2>
+    <h2>⚡ Group Chat Mode</h2>
 
     <div id="login-section" class="box">
-        <h4>1. Simulating Login</h4>
-        <p>Enter a User ID to "pretend" to be logged in:</p>
-        <input type="text" id="userId" placeholder="Enter User ID (e.g., user1)">
-        <button onclick="login()">Join Chat</button>
+        <h4>1. Join a Group</h4>
+        <input type="text" id="userId" placeholder="Your Name (e.g. Vani)">
+        <input type="text" id="roomName" placeholder="Room Name (e.g. Avengers)">
+        <button onclick="joinRoom()">Enter Room</button>
     </div>
 
     <div id="chat-section" class="box" style="display:none;">
-        <h4>2. Chat Room</h4>
+        <h4>2. Room: <span id="displayRoom"></span></h4>
         <p>Logged in as: <b id="displayUser"></b></p>
         
         <div id="messages"></div>
 
-        <input type="text" id="receiverId" placeholder="Send to User ID (e.g., user2)">
         <input type="text" id="messageInput" placeholder="Type a message...">
-        <button onclick="sendMessage()">Send</button>
+        <button onclick="sendMessage()">Send to Group</button>
     </div>
 
     <script>
         const socket = io("http://localhost:5000");
         let myId = "";
+        let myRoom = "";
 
-        // Listen for incoming messages
         socket.on("receive_message", (data) => {
             const msgDiv = document.getElementById("messages");
-            msgDiv.innerHTML += `<p><strong>From ${data.sender}:</strong> ${data.content}</p>`;
-            msgDiv.scrollTop = msgDiv.scrollHeight; // Auto-scroll to bottom
+            msgDiv.innerHTML += `<p><strong>${data.sender}:</strong> ${data.content}</p>`;
+            msgDiv.scrollTop = msgDiv.scrollHeight;
         });
 
-        function login() {
+        function joinRoom() {
             myId = document.getElementById("userId").value;
-            if (!myId) return alert("Enter a User ID!");
+            myRoom = document.getElementById("roomName").value;
+            if (!myId || !myRoom) return alert("Enter both Name and Room!");
             
-            // Tell the server we are here
-            socket.emit("join_room", myId);
+            // Join the specific room
+            socket.emit("join_room", myRoom);
             
             document.getElementById("login-section").style.display = "none";
             document.getElementById("chat-section").style.display = "block";
             document.getElementById("displayUser").innerText = myId;
+            document.getElementById("displayRoom").innerText = myRoom;
         }
 
         function sendMessage() {
-            const receiverId = document.getElementById("receiverId").value;
             const content = document.getElementById("messageInput").value;
+            if (!content) return;
 
-            if (!receiverId || !content) return;
-
-            // Send to server
             socket.emit("send_message", {
                 senderId: myId,
-                receiverId: receiverId,
+                targetRoom: myRoom, // Sending to the Room, not a specific person
                 content: content
             });
 
-            // Show my own message on my screen
+            // Show my own message
             const msgDiv = document.getElementById("messages");
             msgDiv.innerHTML += `<p style="text-align:right; color:blue;"><strong>Me:</strong> ${content}</p>`;
             document.getElementById("messageInput").value = "";

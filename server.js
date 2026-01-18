@@ -7,7 +7,7 @@ const { Server } = require('socket.io');
 const Message = require('./models/Message');
 
 const app = express();
-const server = http.createServer(app); // Create HTTP server
+const server = http.createServer(app);
 
 // Middleware
 app.use(cors());
@@ -25,7 +25,7 @@ mongoose.connect(process.env.MONGO_URI)
 // WebSocket Setup
 const io = new Server(server, {
   cors: {
-    origin: "*", // Allow connections from anywhere (for simplicity)
+    origin: "*",
     methods: ["GET", "POST"]
   }
 });
@@ -34,31 +34,36 @@ const io = new Server(server, {
 io.on('connection', (socket) => {
   console.log(`User connected: ${socket.id}`);
 
-  // Event: Join a specific "room" (Using userId as room name for simplicity)
-  socket.on('join_room', (userId) => {
-    socket.join(userId);
-    console.log(`User with ID: ${userId} joined room: ${userId}`);
+  // Event: Join a Room
+  socket.on('join_room', (roomName) => {
+    socket.join(roomName);
+    console.log(`User ${socket.id} joined room: ${roomName}`);
   });
 
-  // Event: Send Message
+  // Event: Send Message (The ONLY one we need)
   socket.on('send_message', async (data) => {
-    // data should look like: { senderId, receiverId, content }
     try {
-      // 1. Save message to Database
+      // debug log
+      console.log("📨 Received:", data);
+
+      // Handle both "Group Chat" (targetRoom) and "Private" (receiverId)
+      // If targetRoom is missing, check receiverId. If both missing, default to "General"
+      const receiver = data.targetRoom || data.receiverId || "General";
+
+      // 1. Save to Database
       const newMessage = new Message({
         sender: data.senderId,
-        receiver: data.receiverId,
+        receiver: receiver, 
         content: data.content
       });
       await newMessage.save();
+      console.log("✅ Saved to DB");
 
-      // 2. Emit message to the Receiver (Real-time!)
-      // We send it to the room matching the receiver's ID
-      io.to(data.receiverId).emit("receive_message", newMessage);
+      // 2. Broadcast to that Room/User
+      socket.to(receiver).emit("receive_message", newMessage);
       
-
     } catch (err) {
-      console.log("Error saving message:", err);
+      console.log("❌ Error saving message:", err.message);
     }
   });
 
@@ -71,14 +76,12 @@ io.on('connection', (socket) => {
 app.get('/api/messages/:userId/:otherUserId', async (req, res) => {
   try {
     const { userId, otherUserId } = req.params;
-    
-    // Find messages where (sender is Me AND receiver is You) OR (sender is You AND receiver is Me)
     const messages = await Message.find({
       $or: [
         { sender: userId, receiver: otherUserId },
         { sender: otherUserId, receiver: userId }
       ]
-    }).sort({ createdAt: 1 }); // Sort by oldest to newest
+    }).sort({ createdAt: 1 });
 
     res.json(messages);
   } catch (err) {
@@ -86,6 +89,5 @@ app.get('/api/messages/:userId/:otherUserId', async (req, res) => {
   }
 });
 
-// Start Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
